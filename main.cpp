@@ -48,16 +48,6 @@ string get_attacker_IP_addr(const string &name) {
     return ip_addr;
 }
 
-string mac_to_string(const Mac& mac) {
-    stringstream ss;
-    auto* ptr = (uint8_t*)&mac;
-    for (int i = 0; i < 6; i++) {
-        ss << hex << setw(2) << setfill('0') << (int)ptr[i];
-        if (i != 5) ss << ":";
-    }
-    return ss.str();
-}
-
 int main(int argc, char* argv[]) {
     if (argc < 4 or (argc % 2 !=0)) {
         usage();

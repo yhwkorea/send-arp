@@ -1,4 +1,5 @@
 LDLIBS=-lpcap
+CXXFLAGS = -std=c++11
 
 all: send-arp-test
 

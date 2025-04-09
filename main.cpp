@@ -95,25 +95,31 @@ int main(int argc, char* argv[]) {
         if (res != 0) {
             fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(pcap));
         }
-        const u_char* packet_target;
-        while (true) {
-            struct pcap_pkthdr* header;
-            res = pcap_next_ex(pcap, &header, &packet_target);
-            if (res == 0) continue;
-            if (res == PCAP_ERROR || res == PCAP_ERROR_BREAK) {
-                printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(pcap));
+        struct ArpHdr arp;
+        struct pcap_pkthdr *header;
+        const u_char *pkt;
+
+        while (true){
+            int res = pcap_next_ex(handle, &header, &pkt);
+            if (res == 0){
+                continue;
+            }
+            if (res==PCAP_ERROR||res==PCAP_ERROR_BREAK){
+                printf("pcap_next_ex return %d error=%s\n", res, pcap_geterr(handle));
                 break;
             }
-            EthHdr* eth = (EthHdr*)packet_target;
-            if (ntohs(eth->type_) != EthHdr::Arp) continue;
-        
-            ArpHdr* arp = (ArpHdr*)(packet_target + sizeof(EthHdr));
-            if (ntohs(arp->op_) != ArpHdr::Reply) continue;
-        
-            if (ntohl(arp->sip_) == Ip(target_ip) && ntohl(arp->tip_) == Ip(attacker_ip)) {
+            memcpy(&arp, pkt+sizeof(EthHdr), sizeof(ArpHdr));
+            if(pkt && arp.sip()==*new string(argv[3]) && arp.op()==ArpHdr::Reply && arp.tip()==attacker_ip && arp.tmac()==attacker_mac){
                 break;
             }
         }
+        stringstream ss;
+        for(int i=6;i<12;i++){
+            ss<<setfill('0')<<setw(2)<<std::hex<<(int)pkt[i];
+            if(i!=11)ss<<":";
+        }
+        string target_mac=ss.str();
+        ss.str("");
         ArpHdr* arp = (ArpHdr*)(packet_target + sizeof(EthHdr));
         Mac target_Mac = arp->tmac();
         string target_mac = mac_to_string(target_Mac);
@@ -136,19 +142,24 @@ int main(int argc, char* argv[]) {
         if (res != 0) {
             fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(pcap));
         }
-        const u_char* packet_sender;
-        while (true) {
-            struct pcap_pkthdr* header;
-            res = pcap_next_ex(pcap, &header, &packet_sender);
-            if (res == 0) continue;
-            if (res == PCAP_ERROR || res == PCAP_ERROR_BREAK) {
-                printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(pcap));
+        while (true){
+            int res = pcap_next_ex(handle, &header, &pkt);
+            if (res == 0){
+                continue;
+            }
+            if (res==PCAP_ERROR||res==PCAP_ERROR_BREAK){
+                printf("pcap_next_ex return %d error=%s\n", res, pcap_geterr(handle));
+                break;
+            }
+            memcpy(&arp, pkt+sizeof(EthHdr), sizeof(ArpHdr));
+            if(pkt && arp.sip()==*new string(argv[2]) && arp.op()==ArpHdr::Reply && arp.tip()==attacker_ip && arp.tmac()==attacker_mac){
                 break;
             }
         }
-        ArpHdr* arp = (ArpHdr*)(packet_sender + sizeof(EthHdr));
-        Mac sender_Mac = arp->tmac();
-        string sender_mac = mac_to_string(sender_Mac);
+        for(int i=6;i<12;i++){
+            ss<<setfill('0')<<setw(2)<<std::hex<<(int)pkt[i];
+            if(i!=11)ss<<":";
+        }
 
         //reply
         packet.eth_.dmac_ = Mac(sender_mac);

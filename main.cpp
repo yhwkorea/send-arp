@@ -104,6 +104,15 @@ int main(int argc, char* argv[]) {
                 printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(pcap));
                 break;
             }
+            EthHdr* eth = (EthHdr*)packet_target;
+            if (ntohs(eth->type_) != EthHdr::Arp) continue;
+        
+            ArpHdr* arp = (ArpHdr*)(packet_target + sizeof(EthHdr));
+            if (ntohs(arp->op_) != ArpHdr::Reply) continue;
+        
+            if (ntohl(arp->sip_) == Ip(target_ip) && ntohl(arp->tip_) == Ip(attacker_ip)) {
+                break;
+            }
         }
         ArpHdr* arp = (ArpHdr*)(packet_target + sizeof(EthHdr));
         Mac target_Mac = arp->tmac();
